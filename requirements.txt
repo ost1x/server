@@ -4,4 +4,4 @@ uvicorn
 python-multipart
 spacy
 nltk
-en_core_web_sm
+
