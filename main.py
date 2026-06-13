@@ -1,3 +1,21 @@
+import nltk
+import ssl
+
+# ЭТОТ БЛОК ДОБАВИТЬ В САМОЕ НАЧАЛО:
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+nltk.download('stopwords')
+
+from fastapi import FastAPI, UploadFile
+import pysubs2
+import spacy
+from nltk.corpus import stopwords
+
 from fastapi import FastAPI, UploadFile
 import pysubs2
 import spacy
