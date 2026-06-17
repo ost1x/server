@@ -1,7 +1,14 @@
 import nltk
 import ssl
+import io
+import pysubs2
+import spacy
+from fastapi import FastAPI, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from nltk.corpus import stopwords
 
-# Блок для SSL (чтобы nltk мог качать данные)
+# Блок для SSL
 try:
     _create_unverified_https_context = ssl._create_unverified_context
 except AttributeError:
@@ -11,18 +18,9 @@ else:
 
 nltk.download('stopwords')
 
-from fastapi import FastAPI, UploadFile
-import pysubs2
-import spacy
-from nltk.corpus import stopwords
-import io
-
 app = FastAPI()
 
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI()
-
+# Настройка CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -54,4 +52,13 @@ def extract_unique_words(content):
 async def process_file(file: UploadFile):
     content = await file.read()
     words_list = extract_unique_words(content)
-    return {"unique_words": words_list}
+    
+    # Превращаем список в CSV-строку (слова в столбик)
+    csv_content = "\n".join(words_list)
+    
+    # Отдаем как файл
+    return StreamingResponse(
+        io.BytesIO(csv_content.encode('utf-8')),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=words.csv"}
+    )
