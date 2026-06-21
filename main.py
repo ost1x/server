@@ -31,8 +31,15 @@ app.add_middleware(
 # Загружаем ресурсы
 nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words('english'))
-stop_words.update(['mmm', 'uh', 'na', 'oh', 'ah', 'yeah'])
-
+# Расширяем стоп-слова
+    stop_words.update(['hmm', 'uh', 'oh', 'mm', 'ah', 'na', 'huh', 'em'])
+    
+    for token in doc:
+        # 1. Убираем PROPN
+        # 2. Длина слова должна быть больше 2 букв (отсеет лишнее)
+        # 3. Должно быть в стоп-листе
+        if token.pos_ != "PROPN" and len(token.text) > 2 and token.text.lower() not in stop_words and token.is_alpha:
+            unique_words.add(token.text.lower())
 def extract_unique_words(content):
     with open("temp.srt", "w", encoding="utf-8") as f:
         f.write(content.decode('utf-8'))
