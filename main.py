@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from nltk.corpus import stopwords
 
-# Блок для SSL
+# Блок для SSL (чтобы nltk мог качать данные)
 try:
     _create_unverified_https_context = ssl._create_unverified_context
 except AttributeError:
@@ -20,7 +20,7 @@ nltk.download('stopwords')
 
 app = FastAPI()
 
-# Настройка CORS
+# Настройка CORS, чтобы сайт мог общаться с сервером
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -43,7 +43,11 @@ def extract_unique_words(content):
     unique_words = set()
     
     for token in doc:
-        if token.ent_type_ != "PERSON" and token.text.lower() not in stop_words and token.is_alpha:
+        # Фильтруем:
+        # 1. token.pos_ != "PROPN" — убираем имена собственные (имена, бренды, локации)
+        # 2. token.text.lower() not in stop_words — убираем стоп-слова
+        # 3. token.is_alpha — оставляем только слова из букв
+        if token.pos_ != "PROPN" and token.text.lower() not in stop_words and token.is_alpha:
             unique_words.add(token.text.lower())
             
     return list(unique_words)
