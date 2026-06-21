@@ -20,7 +20,6 @@ nltk.download('stopwords')
 
 app = FastAPI()
 
-# Настройка CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -28,10 +27,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Загружаем ресурсы
 nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words('english'))
-# Добавляем звуки/паразиты в стоп-слова
 stop_words.update(['hmm', 'uh', 'oh', 'mm', 'ah', 'na', 'huh', 'em'])
 
 def extract_unique_words(content):
@@ -43,11 +40,10 @@ def extract_unique_words(content):
     
     doc = nlp(full_text)
     
-    # Словарь для хранения форм: {base_form: {variants}}
+    # Словарь для лемматизации
     lemma_map = {}
     
     for token in doc:
-        # Условия фильтрации
         is_proper_noun = (token.pos_ == "PROPN")
         is_capitalized = token.text[0].isupper() and not token.is_sent_start
         
@@ -59,15 +55,13 @@ def extract_unique_words(content):
             if base_form not in lemma_map:
                 lemma_map[base_form] = set()
             
-            # Сохраняем форму, если она отличается от базовой
             if original_form != base_form:
                 lemma_map[base_form].add(original_form)
 
-    # Формируем список для CSV
+    # Формируем список
     final_list = []
     for base, variants in lemma_map.items():
         if variants:
-            # Сортируем варианты внутри скобок для порядка
             variants_str = ", ".join(sorted(list(variants)))
             final_list.append(f"{base} ({variants_str})")
         else:
@@ -80,7 +74,9 @@ async def process_file(file: UploadFile):
     content = await file.read()
     words_list = extract_unique_words(content)
     
-    csv_content = "\n".join(words_list)
+    # Добавляем заголовок таблицы
+    header = "Слово (формы)\n"
+    csv_content = header + "\n".join(words_list)
     
     return StreamingResponse(
         io.BytesIO(csv_content.encode('utf-8')),
