@@ -31,6 +31,7 @@ app.add_middleware(
 # Загружаем ресурсы
 nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words('english'))
+stop_words.update(['mmm', 'uh', 'na', 'oh', 'ah', 'yeah'])
 
 def extract_unique_words(content):
     with open("temp.srt", "w", encoding="utf-8") as f:
