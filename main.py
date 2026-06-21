@@ -43,11 +43,15 @@ def extract_unique_words(content):
     unique_words = set()
     
     for token in doc:
-        # Фильтруем:
-        # 1. token.pos_ != "PROPN" — убираем имена собственные (имена, бренды, локации)
-        # 2. token.text.lower() not in stop_words — убираем стоп-слова
-        # 3. token.is_alpha — оставляем только слова из букв
-        if token.pos_ != "PROPN" and token.text.lower() not in stop_words and token.is_alpha:
+        # Убираем все имена собственные через spacy (PROPN)
+        is_proper_noun = (token.pos_ == "PROPN")
+        
+        # ДОПОЛНИТЕЛЬНО: если слово начинается с большой буквы, 
+        # но при этом оно не стоит в начале предложения (как "I" или первое слово), 
+        # считаем его именем.
+        is_capitalized = token.text[0].isupper() and not token.is_sent_start
+        
+        if not is_proper_noun and not is_capitalized and token.text.lower() not in stop_words and token.is_alpha:
             unique_words.add(token.text.lower())
             
     return list(unique_words)
