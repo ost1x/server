@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from nltk.corpus import stopwords
 
-# Блок для SSL
+# Блок SSL
 try:
     _create_unverified_https_context = ssl._create_unverified_context
 except AttributeError:
@@ -21,31 +21,26 @@ nltk.download('stopwords')
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words('english'))
 stop_words.update(['hmm', 'uh', 'oh', 'mm', 'ah', 'na', 'huh', 'em'])
 
-# СЛОВАРЬ ДЛЯ УРОВНЕЙ И ЧАСТЕЙ РЕЧИ
+# ЖЕЛЕЗОБЕТОННАЯ ЗАГРУЗКА СЛОВАРЯ
 cefr_dict = {}
 try:
     with open("oxford-5000.csv", "r", encoding="utf-8") as f:
+        # Пропускаем возможные пустые строки и заголовки
         reader = csv.reader(f)
-        next(reader) # Пропускаем заголовок
+        header = next(reader, None) 
         for row in reader:
             if len(row) >= 3:
-                # В файле: слово, класс, уровень
-                word, part_of_speech, level = row[0], row[1], row[2]
-                # Сохраняем в виде словаря: { 'word': (part_of_speech, level) }
-                cefr_dict[word.lower()] = (part_of_speech, level)
-except FileNotFoundError:
-    print("Файл oxford-5000.csv не найден!")
+                # row[0]=word, row[1]=class, row[2]=level
+                # Сохраняем в словарь
+                cefr_dict[row[0].strip().lower()] = (row[1].strip(), row[2].strip())
+except Exception as e:
+    print(f"Ошибка загрузки словаря: {e}")
 
 def extract_unique_words(content):
     with open("temp.srt", "w", encoding="utf-8") as f:
@@ -53,34 +48,28 @@ def extract_unique_words(content):
     
     subs = pysubs2.load("temp.srt")
     full_text = " ".join([sub.text for sub in subs])
-    
     doc = nlp(full_text)
     
     lemma_map = {}
-    
     for token in doc:
-        is_proper_noun = (token.pos_ == "PROPN")
-        is_capitalized = token.text[0].isupper() and not token.is_sent_start
-        
-        if not is_proper_noun and not is_capitalized and len(token.text) > 2 and token.text.lower() not in stop_words and token.is_alpha:
-            base_form = token.lemma_.lower()
-            original_form = token.text.lower()
-            
-            if base_form not in lemma_map:
-                lemma_map[base_form] = set()
-            
-            if original_form != base_form:
-                lemma_map[base_form].add(original_form)
+        # Фильтр слов
+        if not token.is_punct and token.is_alpha and len(token.text) > 2 and token.text.lower() not in stop_words:
+            if token.pos_ != "PROPN" and not (token.text[0].isupper() and not token.is_sent_start):
+                
+                base = token.lemma_.lower()
+                orig = token.text.lower()
+                
+                if base not in lemma_map: lemma_map[base] = set()
+                if orig != base: lemma_map[base].add(orig)
 
-    # Формируем список
     final_list = []
     for base, variants in lemma_map.items():
         variants_str = ", ".join(sorted(list(variants)))
         
-        # Получаем данные из нашего нового словаря
+        # Поиск: если слово не нашлось, попробуем еще раз просто его нижний регистр
+        # (хотя base уже в нижнем регистре, это страховка)
         pos, level = cefr_dict.get(base, ("N/A", "Unknown"))
         
-        # Записываем в формате: Слово;Формы;Класс;Уровень
         final_list.append(f"{base};{variants_str};{pos};{level}")
             
     return sorted(final_list)
@@ -90,7 +79,7 @@ async def process_file(file: UploadFile):
     content = await file.read()
     words_list = extract_unique_words(content)
     
-    # Заголовок таблицы с новой колонкой
+    # Заголовок
     header = "Слово;Формы;Часть речи;Уровень\n"
     csv_content = header + "\n".join(words_list)
     
